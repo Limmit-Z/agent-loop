@@ -1,12 +1,23 @@
 """JSON-schema tool registry and adapters for the neighboring RAG project."""
 import json
+import os
 import re
 import sys
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RAG = ROOT / '../rag-eval'
+RAG_CANDIDATES_ENV = 'RAG_EVAL_PATH'
+
+
+def _rag_root():
+    """定位 rag-eval：优先环境变量，其次同级目录，再次仓库内目录。"""
+    env = os.environ.get(RAG_CANDIDATES_ENV)
+    cands = ([Path(env)] if env else []) + [ROOT / '../rag-eval', ROOT / 'rag-eval']
+    for c in cands:
+        if (c / 'ingest.py').exists():
+            return c.resolve()
+    raise FileNotFoundError('rag-eval 仓库未找到：请与 rag-eval 同级、放在仓库目录内，或设置 RAG_EVAL_PATH')
 CORPUS = ROOT / '../corpus/docs-zh-cn/src'
 
 
@@ -84,7 +95,7 @@ def make_registry(output_dir=None):
     def kb_search(query, top_k=5):
         if 'retriever' not in cache:
             # Import the sibling project; its corpus is only read and its index is stored here.
-            sys.path.insert(0, str(RAG.resolve()))
+            sys.path.insert(0, str(_rag_root()))
             original = sys.dont_write_bytecode
             try:
                 sys.dont_write_bytecode = True
